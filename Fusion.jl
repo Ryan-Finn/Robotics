@@ -1,11 +1,11 @@
 using Distributions, LinearAlgebra, Plots, Random
 using Statistics, StatsPlots, SpecialFunctions
 
-Random.seed!(0);
+#Random.seed!(0);
 global n = 100000
-global num = 3
+global num = 10
 global Mean = 0
-global STD = broadcast(abs, 200*rand(num)')
+global STD = broadcast(abs, rand(num)')
 sort!(STD')
 
 function init()

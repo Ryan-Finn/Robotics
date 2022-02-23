@@ -1,7 +1,7 @@
 using Distributions, LinearAlgebra, Plots, Random
 using Statistics, StatsPlots, SpecialFunctions, Printf
 
-Random.seed!(0);
+# Random.seed!(0);
 global n = 1000000
 global num = 10
 global Mean = 1

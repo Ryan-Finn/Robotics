@@ -1,22 +1,10 @@
-"""
-
-A* grid planning
-
-author: Atsushi Sakai(@Atsushi_twi)
-        Nikos Kanargias (nkana@tee.gr)
-
-See Wikipedia article (https://en.wikipedia.org/wiki/A*_search_algorithm)
-
-"""
-
 import math
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from numpy.random import rand
 
-np.random.seed(6)
-
+# np.random.seed(6)
 show_animation = True
 
 
@@ -101,7 +89,6 @@ class Grid:
                 c_id2 = min(open_set2, key=lambda o: open_set2[o].cost + self.calc_heuristic(start_node, open_set2[o]))
                 current2 = open_set2[c_id2]
 
-            # show graph
             if show_animation:
                 if single:
                     plt.plot(self.calc_grid_position(current.x, self.start[0]),
@@ -148,14 +135,13 @@ class Grid:
             closed_set[c_id] = current
             self.expand_grid(current, c_id, open_set, closed_set, corner_set)
 
-            for _, corner in corner_set.items():
-                if self.visible(start_node, corner) and self.calc_grid_index(corner) not in corner_set2:
-                    for _, node in checked_set.items():
-                        if self.visible(node, corner):
-                            corner_set2[self.calc_grid_index(corner)] = corner
-                            plt.plot(self.calc_grid_position(corner.x, self.start[0]),
-                                     self.calc_grid_position(corner.y, self.start[1]), "^r")
-                            return
+            if current != start_node and self.visible(start_node, current):
+                for _, node in checked_set.items():
+                    if self.visible(node, current):
+                        corner_set2[self.calc_grid_index(current)] = self.Node(current.x, current.y, np.inf, -1)
+                        plt.plot(self.calc_grid_position(current.x, self.start[0]),
+                                 self.calc_grid_position(current.y, self.start[1]), "^r")
+                        return
 
             if not single:
                 del open_set2[c_id2]
@@ -178,8 +164,8 @@ class Grid:
                 continue
 
             if n_id not in open_set:
-                open_set[n_id] = node  # discovered a new node
-            elif open_set[n_id].cost > node.cost:  # This path is the best until now. record it
+                open_set[n_id] = node
+            elif open_set[n_id].cost > node.cost:
                 open_set[n_id] = node
 
         corner = False
@@ -196,78 +182,63 @@ class Grid:
 
     def jump_point(self, start, intersect, goal, corner_set):
         print("Finding path...")
-        print(start.parent_index)
-        print(intersect.parent_index)
-        print(goal.parent_index)
+
         grid = Grid()
         grid.copy(self)
-        open_set, open_set2, closed_set = dict(), dict(), dict()
 
-        intersect.parent_index = -1
-        open_set[self.calc_grid_index(intersect)] = intersect
-        open_set2[self.calc_grid_index(intersect)] = intersect
-        current, current2 = intersect, intersect
-        c_id, c_id2 = self.calc_grid_index(intersect), self.calc_grid_index(intersect)
+        marker = "^g"
+        found_intersect = True
+
+        open_set = dict()
+        open_set[self.calc_grid_index(start)] = start
+        closed_set, closed_set2 = dict(), corner_set.copy()
 
         while 1:
             if len(open_set) == 0:
-                print("bah---------------------------------")
+                print("Expanding intersect node...")
                 grid.aStar((intersect.x, intersect.y), (start.x, start.y), closed_set, corner_set, True)
-                closed_set = dict()
-                open_set[self.calc_grid_index(intersect)] = intersect
-                current = intersect
-                c_id = self.calc_grid_index(intersect)
-            elif len(open_set2) == 0:
-                print("meh---------------------------------")
-                grid.aStar((intersect.x, intersect.y), (goal.x, goal.y), closed_set, corner_set, True)
-                closed_set = dict()
-                open_set2[self.calc_grid_index(intersect)] = intersect
-                current2 = intersect
-                c_id2 = self.calc_grid_index(intersect)
+                grid.aStar((intersect.x, intersect.y), (goal.x, goal.y), closed_set2, corner_set, True)
+                marker = "^r"
+                found_intersect = False
+                open_set[self.calc_grid_index(start)] = start
+                closed_set, closed_set2 = dict(), corner_set.copy()
 
-            if current != start:
-                c_id = min(open_set, key=lambda o: open_set[o].cost + self.calc_heuristic(start, open_set[o]))
+            if not found_intersect:
+                c_id = min(open_set, key=lambda o: open_set[o].cost + self.calc_heuristic(intersect, open_set[o]))
                 current = open_set[c_id]
             else:
-                c_id2 = min(open_set2, key=lambda o: open_set2[o].cost + self.calc_heuristic(goal, open_set2[o]))
-                current2 = open_set2[c_id2]
+                c_id = min(open_set, key=lambda o: open_set[o].cost + self.calc_heuristic(goal, open_set[o]))
+                current = open_set[c_id]
+
+            if current == intersect:
+                found_intersect = True
+                open_set = dict()
+                open_set[self.calc_grid_index(intersect)] = intersect
 
             if show_animation:
-                if current != start:
-                    plt.plot(self.calc_grid_position(current.x, self.start[0]),
-                             self.calc_grid_position(current.y, self.start[1]), "^g")
-                else:
-                    plt.plot(self.calc_grid_position(current2.x, self.start[0]),
-                             self.calc_grid_position(current2.y, self.start[1]), "^g")
+                plt.plot(self.calc_grid_position(current.x, self.start[0]),
+                         self.calc_grid_position(current.y, self.start[1]), marker)
                 plt.gcf().canvas.mpl_connect('key_release_event',
                                              lambda event: [exit(0) if event.key == 'escape' else None])
                 if len(closed_set.keys()) % 1 == 0:
                     plt.pause(0.001)
 
-            if current == start and current2 == goal:
+            if current == goal:
                 print("Goal Found!")
-                start.parent_index = current.parent_index
-                self.calc_final_path(intersect, start, closed_set)
-                # self.calc_final_path(intersect, current2, closed_set)
+                self.calc_final_path(current, closed_set)
                 return
 
-            if current != start:
-                del open_set[c_id]
-                closed_set[c_id] = current
-                self.expand_corners(current, c_id, open_set, closed_set, corner_set)
-            else:
-                del open_set2[c_id2]
-                closed_set[c_id2] = current2
-                self.expand_corners(current2, c_id2, open_set2, closed_set, corner_set)
+            del open_set[c_id]
+            del closed_set2[c_id]
+            closed_set[c_id] = current
+            self.expand_corners(current, c_id, open_set, closed_set, corner_set)
 
     def expand_corners(self, current, c_id, open_set, closed_set, corner_set):
         for _, corner in corner_set.items():
             node = self.Node(corner.x, corner.y, current.cost + self.calc_heuristic(current, corner), c_id)
             n_id = self.calc_grid_index(node)
 
-            if n_id in closed_set:
-                continue
-            if self.visible(node, current):
+            if n_id in closed_set or not self.visible(node, current):
                 continue
             if n_id not in open_set or open_set[n_id].cost > node.cost:
                 open_set[n_id] = node
@@ -281,31 +252,29 @@ class Grid:
             b = current.y - current.x * m
             y = m * x + b
             if self.obstacle_map[x][round(y)]:
-                node.parent_index = -1
-                node.cost = np.inf
+                # node.parent_index = -1
+                # node.cost = np.inf
                 return False
         for y in range(min(current.y, node.y) + 1, max(current.y, node.y) - 1):
             n = run / rise
             d = current.x - current.y * n
             x = n * y + d
             if self.obstacle_map[round(x)][y]:
-                node.parent_index = -1
-                node.cost = np.inf
+                # node.parent_index = -1
+                # node.cost = np.inf
                 return False
         return True
 
-    def calc_final_path(self, start_node, goal_node, closed_set):
+    def calc_final_path(self, goal, closed_set):
         # generate final course
-        rx, ry = [self.calc_grid_position(goal_node.x, self.start[0])], [
-            self.calc_grid_position(goal_node.y, self.start[1])]
-        parent_index = goal_node.parent_index
-        print("--   ", parent_index)
+        rx, ry = [self.calc_grid_position(goal.x, self.start[0])], [
+            self.calc_grid_position(goal.y, self.start[1])]
+        parent_index = goal.parent_index
         while parent_index != -1:
             n = closed_set[parent_index]
             rx.append(self.calc_grid_position(n.x, self.start[0]))
             ry.append(self.calc_grid_position(n.y, self.start[1]))
             parent_index = n.parent_index
-            print(parent_index)
         if show_animation:
             for i in range(0, len(rx) - 1):
                 plt.plot(rx[i], ry[i], "ob")

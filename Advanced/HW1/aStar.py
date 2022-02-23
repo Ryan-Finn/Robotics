@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from numpy.random import rand
 
-# np.random.seed(6)
+np.random.seed(12)
 show_animation = True
+single_sided_astar = False
 
 
 class Grid:
@@ -391,7 +392,7 @@ def main():
                                          lambda event: [exit(0) if event.key == 'escape' else None])
             plt.pause(0.001)
 
-    grid.aStar(single=False)
+    grid.aStar(single=single_sided_astar)
     if show_animation:
         plt.show()
 

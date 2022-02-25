@@ -4,16 +4,16 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from numpy.random import rand
 
-np.random.seed(12)
+np.random.seed(6)
+maze = False
 show_animation = True
 single_sided_astar = False
 
 
 class Grid:
-    def __init__(self, sx=0, sy=0, gx=0, gy=0, resolution=1, rr=0):
+    def __init__(self, sx=0, sy=0, gx=0, gy=0, rr=0.0):
         self.start = (sx, sy)
         self.goal = (gx, gy)
-        self.resolution = resolution
         self.rr = rr
         self.width, self.height = 0, 0
         self.r1, self.r2 = [], []
@@ -32,7 +32,6 @@ class Grid:
     def copy(self, grid):
         self.start = grid.start
         self.goal = grid.goal
-        self.resolution = grid.resolution
         self.rr = grid.rr
         self.width, self.height = grid.width, grid.height
         self.r1, self.r2 = grid.r1, grid.r2
@@ -79,7 +78,7 @@ class Grid:
         current2, c_id2 = None, None
 
         while 1:
-            if len(open_set) == 0:
+            if len(open_set)*len(open_set2) == 0:
                 print("No path exists")
                 break
 
@@ -121,7 +120,7 @@ class Grid:
                     corner_set[c_gd2] = current2
 
             if exist and len(corner_set2) == 0:
-                print("A path exists")
+                print("A path exists.", len(closed_set) + len(closed_set2) - 1, "nodes explored.")
                 if show_animation:
                     plt.plot(self.calc_grid_position(current.x, self.start[0]),
                              self.calc_grid_position(current.y, self.start[1]), "or")
@@ -139,9 +138,10 @@ class Grid:
             if current != start_node and self.visible(start_node, current):
                 for _, node in checked_set.items():
                     if self.visible(node, current):
+                        print(len(closed_set) + len(closed_set2) - 1, "nodes explored.")
                         corner_set2[self.calc_grid_index(current)] = self.Node(current.x, current.y, np.inf, -1)
                         plt.plot(self.calc_grid_position(current.x, self.start[0]),
-                                 self.calc_grid_position(current.y, self.start[1]), "^r")
+                                 self.calc_grid_position(current.y, self.start[1]), "^b")
                         return
 
             if not single:
@@ -152,8 +152,7 @@ class Grid:
     def expand_grid(self, current, c_id, open_set, closed_set, corner_set):
         obs = []
         for i, _ in enumerate(self.motion):
-            node = self.Node(current.x + self.motion[i][0],
-                             current.y + self.motion[i][1],
+            node = self.Node(current.x + self.motion[i][0], current.y + self.motion[i][1],
                              current.cost + self.motion[i][2], c_id)
             n_id = self.calc_grid_index(node)
 
@@ -165,7 +164,11 @@ class Grid:
                 continue
 
             if n_id not in open_set:
-                open_set[n_id] = node
+                if maze:
+                    if i < 4:
+                        open_set[n_id] = node
+                else:
+                    open_set[n_id] = node
             elif open_set[n_id].cost > node.cost:
                 open_set[n_id] = node
 
@@ -188,7 +191,7 @@ class Grid:
         grid.copy(self)
 
         marker = "^g"
-        found_intersect = True
+        found_intersect = not maze
 
         open_set = dict()
         open_set[self.calc_grid_index(start)] = start
@@ -196,9 +199,10 @@ class Grid:
 
         while 1:
             if len(open_set) == 0:
-                print("Expanding intersect node...")
+                print("Path not found. Expanding intersect node...")
                 grid.aStar((intersect.x, intersect.y), (start.x, start.y), closed_set, corner_set, True)
                 grid.aStar((intersect.x, intersect.y), (goal.x, goal.y), closed_set2, corner_set, True)
+                print("Finding path...")
                 marker = "^r"
                 found_intersect = False
                 open_set[self.calc_grid_index(start)] = start
@@ -225,7 +229,7 @@ class Grid:
                     plt.pause(0.001)
 
             if current == goal:
-                print("Goal Found!")
+                print("Goal Found!", len(closed_set) - 1, "corner nodes explored.")
                 self.calc_final_path(current, closed_set)
                 return
 
@@ -248,26 +252,23 @@ class Grid:
         rise = node.y - current.y
         run = node.x - current.x
 
-        for x in range(min(current.x, node.x) + 1, max(current.x, node.x) - 1):
+        for x in range(min(current.x, node.x), max(current.x, node.x)):
             m = rise / run
             b = current.y - current.x * m
             y = m * x + b
-            if self.obstacle_map[x][round(y)]:
-                # node.parent_index = -1
-                # node.cost = np.inf
+            if self.obstacle_map[x][math.floor(y)] or self.obstacle_map[x][math.ceil(y)]:
                 return False
-        for y in range(min(current.y, node.y) + 1, max(current.y, node.y) - 1):
+        for y in range(min(current.y, node.y), max(current.y, node.y)):
             n = run / rise
             d = current.x - current.y * n
             x = n * y + d
-            if self.obstacle_map[round(x)][y]:
-                # node.parent_index = -1
-                # node.cost = np.inf
+            if self.obstacle_map[math.floor(x)][y] or self.obstacle_map[math.ceil(x)][y]:
                 return False
         return True
 
     def calc_final_path(self, goal, closed_set):
         # generate final course
+        total = 0
         rx, ry = [self.calc_grid_position(goal.x, self.start[0])], [
             self.calc_grid_position(goal.y, self.start[1])]
         parent_index = goal.parent_index
@@ -276,24 +277,27 @@ class Grid:
             rx.append(self.calc_grid_position(n.x, self.start[0]))
             ry.append(self.calc_grid_position(n.y, self.start[1]))
             parent_index = n.parent_index
-        if show_animation:
-            for i in range(0, len(rx) - 1):
+        for i in range(0, len(rx) - 1):
+            total += math.hypot(rx[i] - rx[i + 1], ry[i] - ry[i + 1])
+            if show_animation:
                 plt.plot(rx[i], ry[i], "ob")
                 plt.plot((rx[i], rx[i + 1]), (ry[i], ry[i + 1]), "-b")
                 plt.pause(0.001)
-            plt.plot(0, 0, "ob")
+        if show_animation:
+            plt.plot(self.start[0], self.start[1], "ob")
+        print("Path length:", total)
 
     @staticmethod
     def calc_heuristic(n1, n2):
-        w = 1.0  # weight of heuristic
-        d = w * math.hypot(n1.x - n2.x, n1.y - n2.y)
-        return d
+        return math.hypot(n1.x - n2.x, n1.y - n2.y)
 
-    def calc_grid_position(self, index, min_position):
-        return index * self.resolution + min_position
+    @staticmethod
+    def calc_grid_position(index, min_position):
+        return index + min_position
 
-    def calc_xy_index(self, position, min_pos):
-        return round((position - min_pos) / self.resolution)
+    @staticmethod
+    def calc_xy_index(position, min_pos):
+        return position - min_pos
 
     def calc_grid_index(self, node):
         return (node.y - self.start[1]) * self.width + (node.x - self.start[0])
@@ -318,8 +322,8 @@ class Grid:
         return False
 
     def init(self):
-        self.width = 2 * round((self.goal[0] - self.start[0]) / self.resolution)
-        self.height = 2 * round((self.goal[1] - self.start[1]) / self.resolution)
+        self.width = 2 * (self.goal[0] - self.start[0])
+        self.height = 2 * (self.goal[1] - self.start[1])
         self.r1 = range(math.floor(self.start[0] - self.width / 4), math.ceil(self.goal[0] + self.width / 4))
         self.r2 = range(math.floor(self.start[1] - self.height / 4), math.ceil(self.goal[1] + self.height / 4))
 
@@ -336,6 +340,30 @@ class Grid:
                         break
 
 
+def boundary_and_obstacles(top_vertex, bottom_vertex, obs_number=1500):
+    # below can be merged into a rectangle boundary
+    ay = list(range(bottom_vertex[1], top_vertex[1]))
+    ax = [bottom_vertex[0]] * len(ay)
+    cy = ay
+    cx = [top_vertex[0]] * len(cy)
+    bx = list(range(bottom_vertex[0] + 1, top_vertex[0]))
+    by = [bottom_vertex[1]] * len(bx)
+    dx = [bottom_vertex[0]] + bx + [top_vertex[0]]
+    dy = [top_vertex[1]] * len(dx)
+
+    # generate random obstacles
+    ob_x = np.random.randint(bottom_vertex[0] + 1, top_vertex[0], obs_number).tolist()
+    ob_y = np.random.randint(bottom_vertex[1] + 1, top_vertex[1], obs_number).tolist()
+    # x y coordinate in certain order for boundary
+    x = ax + bx + cx + dx
+    y = ay + by + cy + dy
+    obstacle = np.vstack((ob_x, ob_y)).T.tolist()
+    obs_array = np.array(obstacle)
+    bound = np.vstack((x, y)).T
+    bound_obs = np.vstack((bound, obs_array))
+    return bound_obs
+
+
 def main():
     print(__file__ + "  Press Esc to exit")
 
@@ -344,9 +372,8 @@ def main():
     sy = 0
     gx = 35
     gy = 35
-    grid_size = 1
-    robot_radius = 1
-    grid = Grid(sx, sy, gx, gy, grid_size, robot_radius)
+    robot_radius = 0.5
+    grid = Grid(sx, sy, gx, gy, robot_radius)
 
     if show_animation:
         plt.plot(sx, sy, "og")
@@ -355,42 +382,57 @@ def main():
         plt.axis("equal")
         plt.pause(1)
 
-    # a bunch of random elliptical obstacles
-    ells = []
-    w = gx - sx
-    h = gy - sy
-    for _ in range(15):
-        el = Ellipse(xy=(rand() * w + sx, rand() * h + sy), width=rand() * 15 + 5 + robot_radius,
-                     height=rand() * 15 + 5 + robot_radius, angle=rand() * 360)
-        while el.contains_point((sx, sy)) or el.contains_point((gx, gy)):
-            el = Ellipse(xy=(rand() * w + sx, rand() * h + sy), width=rand() * 15 + 5 + robot_radius,
-                         height=rand() * 15 + 5 + robot_radius, angle=rand() * 360)
-        el.width -= robot_radius
-        el.height -= robot_radius
-        ells.append(el)
-
-    # discretize each ellipse
-    print("Creating Obstacles...")
-    for el in ells:
-        h = math.ceil(max(el.width, el.height) / 2)
-        h = h + h % grid_size
-        ex = el.center[0] - h
-        ex = ex - ex % grid_size
-        ey = el.center[1] - h
-        ey = ey - ey % grid_size
-
+    if maze:
+        print("Creating Obstacles...")
+        obs = boundary_and_obstacles((gx + 10, gy + 10), (sx - 10, sy - 10))
         ox, oy = [], []
-        for i in range(int(ex), int(ex + 2 * h), grid_size):
-            for j in range(int(ey), int(ey + 2 * h), grid_size):
-                if el.contains_point((i, j)):
-                    ox.append(i)
-                    oy.append(j)
+        for ob in obs:
+            if (ob[0] != sx or ob[1] != sy) and (ob[0] != gx or ob[1] != gy):
+                ox.append(ob[0])
+                oy.append(ob[1])
+                if show_animation:
+                    if len(ox) % 150 == 0:
+                        plt.plot(ox, oy, "sk")
+                        plt.gcf().canvas.mpl_connect('key_release_event',
+                                                     lambda event: [exit(0) if event.key == 'escape' else None])
+                        plt.pause(0.001)
+                        grid.calc_obstacle_map(ox, oy)
+                        ox, oy = [], []
         grid.calc_obstacle_map(ox, oy)
-        if show_animation:
-            plt.plot(ox, oy, ".k")
-            plt.gcf().canvas.mpl_connect('key_release_event',
-                                         lambda event: [exit(0) if event.key == 'escape' else None])
-            plt.pause(0.001)
+    else:
+        # a bunch of random elliptical obstacles
+        obs = []
+        w = gx - sx
+        h = gy - sy
+        for _ in range(15):
+            ob = Ellipse(xy=(rand() * w + sx, rand() * h + sy), width=rand() * 16 + 4 + robot_radius,
+                         height=rand() * 16 + 4 + robot_radius, angle=rand() * 360)
+            while ob.contains_point((sx, sy)) or ob.contains_point((gx, gy)):
+                ob = Ellipse(xy=(rand() * w + sx, rand() * h + sy), width=rand() * 16 + 4 + robot_radius,
+                             height=rand() * 16 + 4 + robot_radius, angle=rand() * 360)
+            ob.width -= robot_radius
+            ob.height -= robot_radius
+            obs.append(ob)
+
+        # discretize each ellipse
+        print("Creating Obstacles...")
+        for ob in obs:
+            h = math.ceil(max(ob.width, ob.height) / 2)
+            x = ob.center[0] - h
+            y = ob.center[1] - h
+
+            ox, oy = [], []
+            for i in range(int(x), int(x + 2 * h)):
+                for j in range(int(y), int(y + 2 * h)):
+                    if ob.contains_point((i, j)):
+                        ox.append(i)
+                        oy.append(j)
+            grid.calc_obstacle_map(ox, oy)
+            if show_animation:
+                plt.plot(ox, oy, "sk")
+                plt.gcf().canvas.mpl_connect('key_release_event',
+                                             lambda event: [exit(0) if event.key == 'escape' else None])
+                plt.pause(0.001)
 
     grid.aStar(single=single_sided_astar)
     if show_animation:

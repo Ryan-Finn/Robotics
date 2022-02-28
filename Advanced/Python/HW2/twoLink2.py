@@ -14,7 +14,7 @@ plt.ion()
 
 # Simulation parameters
 M = 100
-obstacles = [[1.75, 0.75, 0.6], [0.55, 1.5, 0.5], [0, -1, 0.7]]
+obstacles = [[11, 11, 8]]
 
 
 def press(event):
@@ -26,12 +26,12 @@ def press(event):
 
 def main():
     # Arm geometry in the working space
-    link_length = [0.5, 1.5]
+    link_length = [10, 10]
     initial_link_angle = [0, 0]
     arm = NLinkArm(link_length, initial_link_angle)
     # (x, y) co-ordinates in the joint space [cell]
-    start = (10, 50)
-    goal = (58, 56)
+    start = (9, 15)
+    goal = (15, 9)
     grid = get_occupancy_grid(arm, obstacles)
     route = astar_torus(grid, start, goal)
     if len(route) >= 0:
@@ -54,12 +54,13 @@ def animate(grid, arm, route):
         arm.update_joints([theta1, theta2])
         plt.subplot(1, 2, 2)
         arm.plot_arm(plt, obstacles=obstacles)
-        plt.xlim(-2.0, 2.0)
-        plt.ylim(-3.0, 3.0)
-        plt.show()
+        # plt.xlim(-2.0, 2.0)
+        # plt.ylim(-3.0, 3.0)
+        # plt.show()
         # Uncomment here to save the sequence of frames
         # plt.savefig('frame{:04d}.png'.format(i))
-        plt.pause(0.1)
+        plt.pause(0.01)
+    plt.show()
 
 
 def detect_collision(line_seg, circle):

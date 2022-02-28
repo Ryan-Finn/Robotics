@@ -3,6 +3,7 @@ Obstacle navigation using A* on a toroidal grid
 
 Author: Daniel Ingram (daniel-s-ingram)
 """
+import math
 from math import pi
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,13 +13,30 @@ plt.ion()
 
 # Simulation parameters
 M = 100
-obstacles = [[1.75, 0.75, 0.6], [0.55, 1.5, 0.5], [0, -1, 0.25]]
+obstacles = [[11, 11, 8]]
 
 
 def main():
-    arm = NLinkArm([1, 1], [0, 0])
-    start = (10, 50)
-    goal = (58, 56)
+    start = (9, 15)
+    goal = (15, 9)
+    a1 = 10
+    a2 = 10
+
+    D = (start[0] * start[0] + start[1] * start[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
+    t2 = math.atan2(math.sqrt(1 - D * D), D)
+    t1 = math.atan2(start[1], start[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
+    t1 = round(t1 * 180 / pi)
+    t2 = round(t2 * 180 / pi)
+    start = (t1, t2)
+
+    D = (goal[0] * goal[0] + goal[1] * goal[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
+    t2 = math.atan2(math.sqrt(1 - D * D), D)
+    t1 = math.atan2(goal[1], goal[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
+    t1 = round(t1 * 180 / pi)
+    t2 = round(t2 * 180 / pi)
+    goal = (t1, t2)
+
+    arm = NLinkArm([a1, a2], [start[0], start[1]])
     grid = get_occupancy_grid(arm, obstacles)
     plt.imshow(grid)
     plt.show()
@@ -31,36 +49,24 @@ def main():
 
 
 def detect_collision(line_seg, circle):
-    """
-    Determines whether a line segment (arm link) is in contact
-    with a circle (obstacle).
-    Credit to: http://doswa.com/2009/07/13/circle-segment-intersectioncollision.html
-    Args:
-        line_seg: List of coordinates of line segment endpoints e.g. [[1, 1], [2, 2]]
-        circle: List of circle coordinates and radius e.g. [0, 0, 0.5] is a circle centered
-                at the origin with radius 0.5
-
-    Returns:
-        True if the line segment is in contact with the circle
-        False otherwise
-    """
-    a_vec = np.array([line_seg[0][0], line_seg[0][1]])
-    b_vec = np.array([line_seg[1][0], line_seg[1][1]])
-    c_vec = np.array([circle[0], circle[1]])
+    vec0 = np.array([circle[0], circle[1]])  # x0, y0
+    vec1 = np.array([line_seg[0][0], line_seg[0][1]])  # x1, y1
+    vec2 = np.array([line_seg[1][0], line_seg[1][1]])  # x2, y2
     radius = circle[2]
-    line_vec = b_vec - a_vec
-    line_mag = np.linalg.norm(line_vec)
-    circle_vec = c_vec - a_vec
-    proj = circle_vec.dot(line_vec / line_mag)
-    if proj <= 0:
-        closest_point = a_vec
-    elif proj >= line_mag:
-        closest_point = b_vec
-    else:
-        closest_point = a_vec + line_vec * proj / line_mag
-    if np.linalg.norm(closest_point - c_vec) > radius:
-        return False
+    linkLen = line_seg[2]
 
+    d10 = vec1 - vec0
+    d21 = vec2 - vec1
+    c = d21[0] * d10[1] - d10[0] * d21[1]
+    dist2 = c * c / (d21[0] * d21[0] + d21[1] * d21[1])
+
+    if dist2 > radius * radius:
+        return False
+    else:
+        dMid0 = d21 / 2 - vec0
+        hypot2 = dMid0[0] * dMid0[0] + dMid0[1] * dMid0[1]
+        if hypot2 - dist2 > linkLen * linkLen / 4:
+            return False
     return True
 
 
@@ -88,7 +94,7 @@ def get_occupancy_grid(arm, obstacles):
             collision_detected = False
             for k in range(len(points) - 1):
                 for obstacle in obstacles:
-                    line_seg = [points[k], points[k + 1]]
+                    line_seg = [points[k], points[k + 1], arm.link_lengths[k]]
                     collision_detected = detect_collision(line_seg, obstacle)
                     if collision_detected:
                         break
@@ -212,11 +218,7 @@ def calc_heuristic_map(M, goal_node):
     return heuristic_map
 
 
-class NLinkArm(object):
-    """
-    Class for controlling and plotting a planar arm with an arbitrary number of links.
-    """
-
+class NLinkArm:
     def __init__(self, link_lengths, joint_angles):
         self.n_links = len(link_lengths)
         if self.n_links != len(joint_angles):

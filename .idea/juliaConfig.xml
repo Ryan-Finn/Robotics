@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="JuliaProjectSettings">
-    <option name="basePath" value="C:\Users\Finnster\AppData\Local\Programs\Julia-1.7.1\share\julia\base" />
-    <option name="exePath" value="C:\Users\Finnster\AppData\Local\Programs\Julia-1.7.1\bin\julia.exe" />
+    <option name="basePath" value="C:\Users\7401035\AppData\Local\Programs\Julia-1.7.1\share\julia\base" />
+    <option name="exePath" value="C:\Users\7401035\AppData\Local\Programs\Julia-1.7.1\bin\julia.exe" />
     <option name="version" value="1.7.1" />
   </component>
 </project>

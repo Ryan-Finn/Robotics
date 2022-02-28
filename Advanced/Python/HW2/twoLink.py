@@ -52,20 +52,26 @@ def detect_collision(line_seg, circle):
     vec0 = np.array([circle[0], circle[1]])  # x0, y0
     vec1 = np.array([line_seg[0][0], line_seg[0][1]])  # x1, y1
     vec2 = np.array([line_seg[1][0], line_seg[1][1]])  # x2, y2
-    radius = circle[2]
+    radius2 = circle[2] * circle[2]
     linkLen = line_seg[2]
 
     d10 = vec1 - vec0
+    d20 = vec2 - vec0
     d21 = vec2 - vec1
     c = d21[0] * d10[1] - d10[0] * d21[1]
     dist2 = c * c / (d21[0] * d21[0] + d21[1] * d21[1])
 
-    if dist2 > radius * radius:
+    if dist2 > radius2:
         return False
     else:
         dMid0 = d21 / 2 - vec0
         hypot2 = dMid0[0] * dMid0[0] + dMid0[1] * dMid0[1]
+
         if hypot2 - dist2 > linkLen * linkLen / 4:
+            return False
+        elif d10[0] * d10[0] + d10[1] * d10[1] > radius2:
+            return False
+        elif d20[0] * d20[0] + d20[1] * d20[1] > radius2:
             return False
     return True
 

@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import from_levels_and_colors
 
-plt.ion()
+# plt.ion()
 
 # Simulation parameters
 M = 100
@@ -17,7 +17,7 @@ obstacles = [[11, 11, 8]]
 
 
 def main():
-    start = (9, 15)
+    start = (9, 15)     # x, y
     goal = (15, 9)
     a1 = 10
     a2 = 10
@@ -25,27 +25,36 @@ def main():
     D = (start[0] * start[0] + start[1] * start[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
     t2 = math.atan2(math.sqrt(1 - D * D), D)
     t1 = math.atan2(start[1], start[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
-    t1 = round(t1 * 180 / pi)
-    t2 = round(t2 * 180 / pi)
+    t1 = math.floor(t1 * M / 2 / pi)
+    t2 = math.floor(t2 * M / 2 / pi)
     start = (t1, t2)
 
     D = (goal[0] * goal[0] + goal[1] * goal[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
     t2 = math.atan2(math.sqrt(1 - D * D), D)
     t1 = math.atan2(goal[1], goal[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
-    t1 = round(t1 * 180 / pi)
-    t2 = round(t2 * 180 / pi)
+    t1 = math.floor(t1 * M / 2 / pi)
+    t2 = math.floor(t2 * M / 2 / pi)
     goal = (t1, t2)
+    print(start, goal)
 
-    arm = NLinkArm([a1, a2], [start[0], start[1]])
+    arm = NLinkArm([a1, a2], [0, 0])
     grid = get_occupancy_grid(arm, obstacles)
-    plt.imshow(grid)
+
+    colors = ['white', 'black', 'red', 'pink', 'yellow', 'green', 'orange']
+    levels = [0, 1, 2, 3, 4, 5, 6, 7]
+    cmap, norm = from_levels_and_colors(levels, colors)
+
+    grid[start] = 4
+    grid[goal] = 5
+
+    plt.imshow(grid, cmap=cmap, norm=norm, interpolation=None)
     plt.show()
-    route = astar_torus(grid, start, goal)
-    for node in route:
-        theta1 = 2 * pi * node[0] / M - pi
-        theta2 = 2 * pi * node[1] / M - pi
-        arm.update_joints([theta1, theta2])
-        arm.plot(obstacles=obstacles)
+    # route = astar_torus(grid, start, goal)
+    # for node in route:
+    #     theta1 = 2 * pi * node[0] / M - pi
+    #     theta2 = 2 * pi * node[1] / M - pi
+    #     arm.update_joints([theta1, theta2])
+    #     arm.plot(obstacles)
 
 
 def detect_collision(line_seg, circle):
@@ -61,19 +70,17 @@ def detect_collision(line_seg, circle):
     c = d21[0] * d10[1] - d10[0] * d21[1]
     dist2 = c * c / (d21[0] * d21[0] + d21[1] * d21[1])
 
-    if dist2 > radius2:
-        return False
-    else:
+    if dist2 <= radius2:
         dMid0 = d21 / 2 - vec0
         hypot2 = dMid0[0] * dMid0[0] + dMid0[1] * dMid0[1]
 
-        if hypot2 - dist2 > linkLen * linkLen / 4:
-            return False
-        elif d10[0] * d10[0] + d10[1] * d10[1] > radius2:
-            return False
-        elif d20[0] * d20[0] + d20[1] * d20[1] > radius2:
-            return False
-    return True
+        if hypot2 - dist2 <= linkLen * linkLen / 4:
+            return True
+        elif d10[0] * d10[0] + d10[1] * d10[1] <= radius2:
+            return True
+        elif d20[0] * d20[0] + d20[1] * d20[1] <= radius2:
+            return True
+    return False
 
 
 def get_occupancy_grid(arm, obstacles):
@@ -92,7 +99,7 @@ def get_occupancy_grid(arm, obstacles):
         Occupancy grid in joint space
     """
     grid = [[0 for _ in range(M)] for _ in range(M)]
-    theta_list = [2 * i * pi / M for i in range(-M // 2, M // 2 + 1)]
+    theta_list = [2 * i * pi / M for i in range(M // 2, M // 2 + 1)]
     for i in range(M):
         for j in range(M):
             arm.update_joints([theta_list[i], theta_list[j]])

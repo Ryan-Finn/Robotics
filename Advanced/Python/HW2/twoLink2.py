@@ -2,65 +2,32 @@
 Obstacle navigation using A* on a toroidal grid
 
 Author: Daniel Ingram (daniel-s-ingram)
-        Tullio Facchinetti (tullio.facchinetti@unipv.it)
 """
 from math import pi
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import from_levels_and_colors
-import sys
 
 plt.ion()
 
 # Simulation parameters
 M = 100
-obstacles = [[11, 11, 8]]
-
-
-def press(event):
-    """Exit from the simulation."""
-    if event.key == 'q' or event.key == 'Q':
-        print('Quitting upon request.')
-        sys.exit(0)
+obstacles = [[1.75, 0.75, 0.6], [0.55, 1.5, 0.5], [0, -1, 0.25]]
 
 
 def main():
-    # Arm geometry in the working space
-    link_length = [10, 10]
-    initial_link_angle = [0, 0]
-    arm = NLinkArm(link_length, initial_link_angle)
-    # (x, y) co-ordinates in the joint space [cell]
-    start = (9, 15)
-    goal = (15, 9)
+    arm = NLinkArm([1, 1], [0, 0])
+    start = (10, 50)
+    goal = (58, 56)
     grid = get_occupancy_grid(arm, obstacles)
+    plt.imshow(grid)
+    plt.show()
     route = astar_torus(grid, start, goal)
-    if len(route) >= 0:
-        animate(grid, arm, route)
-
-
-def animate(grid, arm, route):
-    fig, axs = plt.subplots(1, 2)
-    fig.canvas.mpl_connect('key_press_event', press)
-    colors = ['white', 'black', 'red', 'pink', 'yellow', 'green', 'orange']
-    levels = [0, 1, 2, 3, 4, 5, 6, 7]
-    cmap, norm = from_levels_and_colors(levels, colors)
-    for i, node in enumerate(route):
-        plt.subplot(1, 2, 1)
-        grid[node] = 6
-        plt.cla()
-        plt.imshow(grid, cmap=cmap, norm=norm, interpolation=None)
+    for node in route:
         theta1 = 2 * pi * node[0] / M - pi
         theta2 = 2 * pi * node[1] / M - pi
         arm.update_joints([theta1, theta2])
-        plt.subplot(1, 2, 2)
-        arm.plot_arm(plt, obstacles=obstacles)
-        # plt.xlim(-2.0, 2.0)
-        # plt.ylim(-3.0, 3.0)
-        # plt.show()
-        # Uncomment here to save the sequence of frames
-        # plt.savefig('frame{:04d}.png'.format(i))
-        plt.pause(0.01)
-    plt.show()
+        arm.plot(obstacles=obstacles)
 
 
 def detect_collision(line_seg, circle):
@@ -93,6 +60,7 @@ def detect_collision(line_seg, circle):
         closest_point = a_vec + line_vec * proj / line_mag
     if np.linalg.norm(closest_point - c_vec) > radius:
         return False
+
     return True
 
 
@@ -112,7 +80,7 @@ def get_occupancy_grid(arm, obstacles):
         Occupancy grid in joint space
     """
     grid = [[0 for _ in range(M)] for _ in range(M)]
-    theta_list = [2 * i * pi / M for i in range(-M // 2, M // 2 + 1)]
+    theta_list = [2 * i * pi / M for i in range(M + 1)]
     for i in range(M):
         for j in range(M):
             arm.update_joints([theta_list[i], theta_list[j]])
@@ -196,7 +164,7 @@ def astar_torus(grid, start_node, goal_node):
             plt.cla()
             # for stopping simulation with the esc key.
             plt.gcf().canvas.mpl_connect('key_release_event',
-                                         lambda event: [exit(0) if event.key == 'escape' else None])
+                    lambda event: [exit(0) if event.key == 'escape' else None])
             plt.imshow(grid, cmap=cmap, norm=norm, interpolation=None)
             plt.show()
             plt.pause(1e-2)
@@ -268,32 +236,32 @@ class NLinkArm(object):
     def update_points(self):
         for i in range(1, self.n_links + 1):
             self.points[i][0] = self.points[i - 1][0] + \
-                                self.link_lengths[i - 1] * \
-                                np.cos(np.sum(self.joint_angles[:i]))
+                self.link_lengths[i - 1] * \
+                np.cos(np.sum(self.joint_angles[:i]))
             self.points[i][1] = self.points[i - 1][1] + \
-                                self.link_lengths[i - 1] * \
-                                np.sin(np.sum(self.joint_angles[:i]))
+                self.link_lengths[i - 1] * \
+                np.sin(np.sum(self.joint_angles[:i]))
 
         self.end_effector = np.array(self.points[self.n_links]).T
 
-    def plot_arm(self, myplt, obstacles=[]):  # pragma: no cover
-        myplt.cla()
+    def plot(self, obstacles=[]):  # pragma: no cover
+        plt.cla()
 
         for obstacle in obstacles:
-            circle = myplt.Circle(
+            circle = plt.Circle(
                 (obstacle[0], obstacle[1]), radius=0.5 * obstacle[2], fc='k')
-            myplt.gca().add_patch(circle)
+            plt.gca().add_patch(circle)
 
         for i in range(self.n_links + 1):
             if i is not self.n_links:
-                myplt.plot([self.points[i][0], self.points[i + 1][0]],
-                           [self.points[i][1], self.points[i + 1][1]], 'r-')
-            myplt.plot(self.points[i][0], self.points[i][1], 'k.')
+                plt.plot([self.points[i][0], self.points[i + 1][0]],
+                         [self.points[i][1], self.points[i + 1][1]], 'r-')
+            plt.plot(self.points[i][0], self.points[i][1], 'k.')
 
-        myplt.xlim([-self.lim, self.lim])
-        myplt.ylim([-self.lim, self.lim])
-        myplt.draw()
-        # myplt.pause(1e-5)
+        plt.xlim([-self.lim, self.lim])
+        plt.ylim([-self.lim, self.lim])
+        plt.draw()
+        plt.pause(1e-5)
 
 
 if __name__ == '__main__':

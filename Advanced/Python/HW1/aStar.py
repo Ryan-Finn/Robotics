@@ -154,10 +154,14 @@ class Grid:
                 for _, node in checked_set.items():
                     if self.visible(node, current):
                         print(len(closed_set) + len(closed_set2) - 1, "nodes explored.")
-                        corner_set2[self.calc_grid_index(current)] = self.Node(current.x, current.y, np.inf, -1)
+                        corner_set2[c_id] = self.Node(current.x, current.y, np.inf, -1)
                         plt.plot(self.calc_grid_position(current.x, self.start[0]),
                                  self.calc_grid_position(current.y, self.start[1]), "^b")
                         return
+                    if c_id in corner_set and c_id not in corner_set2:
+                        corner_set2[c_id] = self.Node(current.x, current.y, np.inf, -1)
+                        plt.plot(self.calc_grid_position(current.x, self.start[0]),
+                                 self.calc_grid_position(current.y, self.start[1]), "^m")
 
             if not single:
                 del open_set2[c_id2]

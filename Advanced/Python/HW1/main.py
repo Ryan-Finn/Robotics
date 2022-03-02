@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from numpy.random import rand
 
-# np.random.seed(6)
+np.random.seed(11)
 maze = False
 show_animation = True
 single_sided_astar = False
 
 
-def boundary_and_obstacles(top_vertex, bottom_vertex, obs_number=1500):
+def make_maze(top_vertex, bottom_vertex, obs_number=1500):
     # below can be merged into a rectangle boundary
     ay = list(range(bottom_vertex[1], top_vertex[1]))
     ax = [bottom_vertex[0]] * len(ay)
@@ -55,7 +55,7 @@ def main():
 
     if maze:
         print("Creating Obstacles...")
-        obs = boundary_and_obstacles((gx + 10, gy + 10), (sx - 10, sy - 10))
+        obs = make_maze((gx + 10, gy + 10), (sx - 10, sy - 10))
         ox, oy = [], []
         for ob in obs:
             if (ob[0] != sx or ob[1] != sy) and (ob[0] != gx or ob[1] != gy):
@@ -69,6 +69,10 @@ def main():
                         plt.pause(0.001)
                         grid.calc_obstacle_map(ox, oy)
                         ox, oy = [], []
+        plt.plot(ox, oy, "sk")
+        plt.gcf().canvas.mpl_connect('key_release_event',
+                                     lambda event: [exit(0) if event.key == 'escape' else None])
+        plt.pause(0.001)
         grid.calc_obstacle_map(ox, oy)
     else:
         # a bunch of random elliptical obstacles

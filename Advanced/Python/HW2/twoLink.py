@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import from_levels_and_colors
 
-# plt.ion()
+plt.ion()
 
 # Simulation parameters
 M = 100
@@ -17,89 +17,66 @@ obstacles = [[11, 11, 8]]
 
 
 def main():
-    start = (9, 15)     # x, y
+    start = (9, 15)  # x, y
     goal = (15, 9)
     a1 = 10
     a2 = 10
 
     D = (start[0] * start[0] + start[1] * start[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
-    t2 = math.atan2(math.sqrt(1 - D * D), D)
+    t2 = -math.atan2(math.sqrt(1 - D * D), D)
     t1 = math.atan2(start[1], start[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
-    t1 = math.floor(t1 * M / 2 / pi)
-    t2 = math.floor(t2 * M / 2 / pi)
+    t1 = round(t1 * M / 2 / pi) + M // 2
+    t2 = round(t2 * M / 2 / pi) + M // 2
     start = (t1, t2)
 
     D = (goal[0] * goal[0] + goal[1] * goal[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
     t2 = math.atan2(math.sqrt(1 - D * D), D)
     t1 = math.atan2(goal[1], goal[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
-    t1 = math.floor(t1 * M / 2 / pi)
-    t2 = math.floor(t2 * M / 2 / pi)
+    t1 = round(t1 * M / 2 / pi) + M // 2
+    t2 = round(t2 * M / 2 / pi) + M // 2
     goal = (t1, t2)
-    print(start, goal)
 
     arm = NLinkArm([a1, a2], [0, 0])
-    grid = get_occupancy_grid(arm, obstacles)
+    grid = get_occupancy_grid(arm)
 
-    colors = ['white', 'black', 'red', 'pink', 'yellow', 'green', 'orange']
-    levels = [0, 1, 2, 3, 4, 5, 6, 7]
-    cmap, norm = from_levels_and_colors(levels, colors)
-
-    grid[start] = 4
-    grid[goal] = 5
-
-    plt.imshow(grid, cmap=cmap, norm=norm, interpolation=None)
+    plt.imshow(grid)
     plt.show()
-    # route = astar_torus(grid, start, goal)
-    # for node in route:
-    #     theta1 = 2 * pi * node[0] / M - pi
-    #     theta2 = 2 * pi * node[1] / M - pi
-    #     arm.update_joints([theta1, theta2])
-    #     arm.plot(obstacles)
+    route = astar_torus(grid, start, goal)
+    for node in route:
+        theta1 = 2 * pi * node[0] / M - pi
+        theta2 = 2 * pi * node[1] / M - pi
+        arm.update_joints([theta1, theta2])
+        arm.plot(obstacles)
 
 
 def detect_collision(line_seg, circle):
-    vec0 = np.array([circle[0], circle[1]])  # x0, y0
-    vec1 = np.array([line_seg[0][0], line_seg[0][1]])  # x1, y1
-    vec2 = np.array([line_seg[1][0], line_seg[1][1]])  # x2, y2
-    radius2 = circle[2] * circle[2]
-    linkLen = line_seg[2]
+    p0 = np.array([circle[0], circle[1]])  # x0, y0
+    p1 = np.array([line_seg[0][0], line_seg[0][1]])  # x1, y1
+    p2 = np.array([line_seg[1][0], line_seg[1][1]])  # x2, y2
+    radius2 = circle[2] * circle[2] / 4
+    linkLen2 = line_seg[2] * line_seg[2]
 
-    d10 = vec1 - vec0
-    d20 = vec2 - vec0
-    d21 = vec2 - vec1
+    d10 = p1 - p0
+    d20 = p2 - p0
+    d21 = p2 - p1
     c = d21[0] * d10[1] - d10[0] * d21[1]
-    dist2 = c * c / (d21[0] * d21[0] + d21[1] * d21[1])
+    dist2 = c * c / linkLen2
 
     if dist2 <= radius2:
-        dMid0 = d21 / 2 - vec0
+        if d10[0] * d10[0] + d10[1] * d10[1] <= radius2:
+            return True
+        if d20[0] * d20[0] + d20[1] * d20[1] <= radius2:
+            return True
+        dMid0 = p1 + d21 / 2 - p0
         hypot2 = dMid0[0] * dMid0[0] + dMid0[1] * dMid0[1]
-
-        if hypot2 - dist2 <= linkLen * linkLen / 4:
-            return True
-        elif d10[0] * d10[0] + d10[1] * d10[1] <= radius2:
-            return True
-        elif d20[0] * d20[0] + d20[1] * d20[1] <= radius2:
+        if hypot2 - dist2 <= linkLen2 / 4:
             return True
     return False
 
 
-def get_occupancy_grid(arm, obstacles):
-    """
-    Discretizes joint space into M values from -pi to +pi
-    and determines whether a given coordinate in joint space
-    would result in a collision between a robot arm and obstacles
-    in its environment.
-
-    Args:
-        arm: An instance of NLinkArm
-        obstacles: A list of obstacles, with each obstacle defined as a list
-                   of xy coordinates and a radius.
-
-    Returns:
-        Occupancy grid in joint space
-    """
+def get_occupancy_grid(arm):
     grid = [[0 for _ in range(M)] for _ in range(M)]
-    theta_list = [2 * i * pi / M for i in range(M // 2, M // 2 + 1)]
+    theta_list = [2 * i * pi / M for i in range(-M // 2, M // 2 + 1)]
     for i in range(M):
         for j in range(M):
             arm.update_joints([theta_list[i], theta_list[j]])
@@ -120,11 +97,11 @@ def get_occupancy_grid(arm, obstacles):
 def astar_torus(grid, start_node, goal_node):
     """
     Finds a path between an initial and goal joint configuration using
-    the A* Algorithm on a tororiadal grid.
+    the A* Algorithm on a toroidal grid.
 
     Args:
         grid: An occupancy grid (ndarray)
-        start_node: Initial joint configuation (tuple)
+        start_node: Initial joint configuration (tuple)
         goal_node: Goal joint configuration (tuple)
 
     Returns:
@@ -139,7 +116,7 @@ def astar_torus(grid, start_node, goal_node):
 
     parent_map = [[() for _ in range(M)] for _ in range(M)]
 
-    heuristic_map = calc_heuristic_map(M, goal_node)
+    heuristic_map = calc_heuristic_map(goal_node)
 
     explored_heuristic_map = np.full((M, M), np.inf)
     distance_map = np.full((M, M), np.inf)
@@ -216,7 +193,7 @@ def find_neighbors(i, j):
     return neighbors
 
 
-def calc_heuristic_map(M, goal_node):
+def calc_heuristic_map(goal_node):
     X, Y = np.meshgrid([i for i in range(M)], [i for i in range(M)])
     heuristic_map = np.abs(X - goal_node[1]) + np.abs(Y - goal_node[0])
     for i in range(heuristic_map.shape[0]):
@@ -225,9 +202,7 @@ def calc_heuristic_map(M, goal_node):
                                       i + 1 + heuristic_map[M - 1, j],
                                       M - i + heuristic_map[0, j],
                                       j + 1 + heuristic_map[i, M - 1],
-                                      M - j + heuristic_map[i, 0]
-                                      )
-
+                                      M - j + heuristic_map[i, 0])
     return heuristic_map
 
 
@@ -240,7 +215,7 @@ class NLinkArm:
         self.link_lengths = np.array(link_lengths)
         self.joint_angles = np.array(joint_angles)
         self.points = [[0, 0] for _ in range(self.n_links + 1)]
-
+        self.end_effector = np.array(self.points[self.n_links])
         self.lim = sum(link_lengths)
         self.update_points()
 
@@ -256,13 +231,14 @@ class NLinkArm:
             self.points[i][1] = self.points[i - 1][1] + \
                                 self.link_lengths[i - 1] * \
                                 np.sin(np.sum(self.joint_angles[:i]))
-
         self.end_effector = np.array(self.points[self.n_links]).T
 
-    def plot(self, obstacles=[]):  # pragma: no cover
+    def plot(self, obs=None):  # pragma: no cover
+        if obs is None:
+            obs = []
         plt.cla()
 
-        for obstacle in obstacles:
+        for obstacle in obs:
             circle = plt.Circle(
                 (obstacle[0], obstacle[1]), radius=0.5 * obstacle[2], fc='k')
             plt.gca().add_patch(circle)

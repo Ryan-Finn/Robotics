@@ -1,50 +1,45 @@
-"""
-Obstacle navigation using A* on a toroidal grid
-
-Author: Daniel Ingram (daniel-s-ingram)
-"""
 import math
 from math import pi
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.colors import from_levels_and_colors
 
 plt.ion()
 
 # Simulation parameters
-M = 100
-obstacles = [[11, 11, 8]]
+resolution = 100
+obstacles = [[11, 11, 4]]
+start = (9, 15)  # x, y
+goal = (15, 9)
+a1 = 10
+a2 = 10
 
 
 def main():
-    start = (9, 15)  # x, y
-    goal = (15, 9)
-    a1 = 10
-    a2 = 10
-
     D = (start[0] * start[0] + start[1] * start[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
     t2 = -math.atan2(math.sqrt(1 - D * D), D)
     t1 = math.atan2(start[1], start[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
-    t1 = round(t1 * M / 2 / pi) + M // 2
-    t2 = round(t2 * M / 2 / pi) + M // 2
-    start = (t1, t2)
+    t1 = round(t1 * resolution / 2 / pi) + resolution // 2
+    t2 = round(t2 * resolution / 2 / pi) + resolution // 2
+    start_angles = (t1, t2)
 
     D = (goal[0] * goal[0] + goal[1] * goal[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
     t2 = math.atan2(math.sqrt(1 - D * D), D)
     t1 = math.atan2(goal[1], goal[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
-    t1 = round(t1 * M / 2 / pi) + M // 2
-    t2 = round(t2 * M / 2 / pi) + M // 2
-    goal = (t1, t2)
+    t1 = round(t1 * resolution / 2 / pi) + resolution // 2
+    t2 = round(t2 * resolution / 2 / pi) + resolution // 2
+    goal_angles = (t1, t2)
 
     arm = NLinkArm([a1, a2], [0, 0])
     grid = get_occupancy_grid(arm)
 
     plt.imshow(grid)
     plt.show()
-    route = astar_torus(grid, start, goal)
+    route = astar_torus(grid, start_angles, goal_angles)
     for node in route:
-        theta1 = 2 * pi * node[0] / M - pi
-        theta2 = 2 * pi * node[1] / M - pi
+        theta1 = 2 * pi * node[0] / resolution - pi
+        theta2 = 2 * pi * node[1] / resolution - pi
         arm.update_joints([theta1, theta2])
         arm.plot(obstacles)
 
@@ -53,7 +48,7 @@ def detect_collision(line_seg, circle):
     p0 = np.array([circle[0], circle[1]])  # x0, y0
     p1 = np.array([line_seg[0][0], line_seg[0][1]])  # x1, y1
     p2 = np.array([line_seg[1][0], line_seg[1][1]])  # x2, y2
-    radius2 = circle[2] * circle[2] / 4
+    radius2 = circle[2] * circle[2]
     linkLen2 = line_seg[2] * line_seg[2]
 
     d10 = p1 - p0
@@ -75,10 +70,10 @@ def detect_collision(line_seg, circle):
 
 
 def get_occupancy_grid(arm):
-    grid = [[0 for _ in range(M)] for _ in range(M)]
-    theta_list = [2 * i * pi / M for i in range(-M // 2, M // 2 + 1)]
-    for i in range(M):
-        for j in range(M):
+    grid = [[0 for _ in range(resolution)] for _ in range(resolution)]
+    theta_list = [2 * i * pi / resolution for i in range(-resolution // 2, resolution // 2 + 1)]
+    for i in range(resolution):
+        for j in range(resolution):
             arm.update_joints([theta_list[i], theta_list[j]])
             points = arm.points
             collision_detected = False
@@ -114,12 +109,12 @@ def astar_torus(grid, start_node, goal_node):
     grid[start_node] = 4
     grid[goal_node] = 5
 
-    parent_map = [[() for _ in range(M)] for _ in range(M)]
+    parent_map = [[() for _ in range(resolution)] for _ in range(resolution)]
 
     heuristic_map = calc_heuristic_map(goal_node)
 
-    explored_heuristic_map = np.full((M, M), np.inf)
-    distance_map = np.full((M, M), np.inf)
+    explored_heuristic_map = np.full((resolution, resolution), np.inf)
+    distance_map = np.full((resolution, resolution), np.inf)
     explored_heuristic_map[start_node] = heuristic_map[start_node]
     distance_map[start_node] = 0
     while True:
@@ -163,7 +158,7 @@ def astar_torus(grid, start_node, goal_node):
                                          lambda event: [exit(0) if event.key == 'escape' else None])
             plt.imshow(grid, cmap=cmap, norm=norm, interpolation=None)
             plt.show()
-            plt.pause(1e-2)
+            plt.pause(0.001)
 
     return route
 
@@ -173,9 +168,9 @@ def find_neighbors(i, j):
     if i - 1 >= 0:
         neighbors.append((i - 1, j))
     else:
-        neighbors.append((M - 1, j))
+        neighbors.append((resolution - 1, j))
 
-    if i + 1 < M:
+    if i + 1 < resolution:
         neighbors.append((i + 1, j))
     else:
         neighbors.append((0, j))
@@ -183,9 +178,9 @@ def find_neighbors(i, j):
     if j - 1 >= 0:
         neighbors.append((i, j - 1))
     else:
-        neighbors.append((i, M - 1))
+        neighbors.append((i, resolution - 1))
 
-    if j + 1 < M:
+    if j + 1 < resolution:
         neighbors.append((i, j + 1))
     else:
         neighbors.append((i, 0))
@@ -194,15 +189,15 @@ def find_neighbors(i, j):
 
 
 def calc_heuristic_map(goal_node):
-    X, Y = np.meshgrid([i for i in range(M)], [i for i in range(M)])
+    X, Y = np.meshgrid([i for i in range(resolution)], [i for i in range(resolution)])
     heuristic_map = np.abs(X - goal_node[1]) + np.abs(Y - goal_node[0])
     for i in range(heuristic_map.shape[0]):
         for j in range(heuristic_map.shape[1]):
             heuristic_map[i, j] = min(heuristic_map[i, j],
-                                      i + 1 + heuristic_map[M - 1, j],
-                                      M - i + heuristic_map[0, j],
-                                      j + 1 + heuristic_map[i, M - 1],
-                                      M - j + heuristic_map[i, 0])
+                                      i + 1 + heuristic_map[resolution - 1, j],
+                                      resolution - i + heuristic_map[0, j],
+                                      j + 1 + heuristic_map[i, resolution - 1],
+                                      resolution - j + heuristic_map[i, 0])
     return heuristic_map
 
 
@@ -240,7 +235,7 @@ class NLinkArm:
 
         for obstacle in obs:
             circle = plt.Circle(
-                (obstacle[0], obstacle[1]), radius=0.5 * obstacle[2], fc='k')
+                (obstacle[0], obstacle[1]), radius=obstacle[2], fc='k')
             plt.gca().add_patch(circle)
 
         for i in range(self.n_links + 1):
@@ -252,7 +247,7 @@ class NLinkArm:
         plt.xlim([-self.lim, self.lim])
         plt.ylim([-self.lim, self.lim])
         plt.draw()
-        plt.pause(1e-5)
+        plt.pause(0.001)
 
 
 if __name__ == '__main__':

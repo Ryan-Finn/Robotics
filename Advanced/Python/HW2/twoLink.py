@@ -9,7 +9,7 @@ plt.ion()
 
 # Simulation parameters
 resolution = 100
-obstacles = [[11, 11, 4]]
+obstacles = [[11, 11, 4]]   # x, y, r
 start = (9, 15)  # x, y
 goal = (15, 9)
 a1 = 10
@@ -17,22 +17,14 @@ a2 = 10
 
 
 def main():
-    D = (start[0] * start[0] + start[1] * start[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
-    t2 = -math.atan2(math.sqrt(1 - D * D), D)
-    t1 = math.atan2(start[1], start[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
-    t1 = round(t1 * resolution / 2 / pi) + resolution // 2
-    t2 = round(t2 * resolution / 2 / pi) + resolution // 2
-    start_angles = (t1, t2)
-
-    D = (goal[0] * goal[0] + goal[1] * goal[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
-    t2 = math.atan2(math.sqrt(1 - D * D), D)
-    t1 = math.atan2(goal[1], goal[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
-    t1 = round(t1 * resolution / 2 / pi) + resolution // 2
-    t2 = round(t2 * resolution / 2 / pi) + resolution // 2
-    goal_angles = (t1, t2)
-
     arm = NLinkArm([a1, a2], [0, 0])
     grid = get_occupancy_grid(arm)
+
+    start_angles = get_angles(grid, start)
+    goal_angles = get_angles(grid, goal)
+    if start_angles == (-1, -1) or goal_angles == (-1, -1):
+        print("No path exists")
+        return
 
     plt.imshow(grid)
     plt.show()
@@ -42,6 +34,25 @@ def main():
         theta2 = 2 * pi * node[1] / resolution - pi
         arm.update_joints([theta1, theta2])
         arm.plot(obstacles)
+
+
+def get_angles(grid, node):
+    D = (node[0] * node[0] + node[1] * node[1] - a1 * a1 - a2 * a2) / (2 * a1 * a2)
+    t2 = math.atan2(math.sqrt(1 - D * D), D)
+    t1 = math.atan2(node[1], node[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
+    t1 = round(t1 * resolution / 2 / pi) + resolution // 2
+    t2 = round(t2 * resolution / 2 / pi) + resolution // 2
+
+    if grid[t1][t2] == 1:
+        t2 = -math.atan2(math.sqrt(1 - D * D), D)
+        t1 = math.atan2(node[1], node[0]) - math.atan2(a1 * math.sin(t2), a1 + a2 * math.cos(t2))
+        t1 = round(t1 * resolution / 2 / pi) + resolution // 2
+        t2 = round(t2 * resolution / 2 / pi) + resolution // 2
+
+    if grid[t1][t2] == 1:
+        return -1, -1
+
+    return t1, t2
 
 
 def detect_collision(line_seg, circle):

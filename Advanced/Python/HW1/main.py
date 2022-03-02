@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from numpy.random import rand
 
-np.random.seed(6)
+# np.random.seed(6)
 maze = False
 show_animation = True
 single_sided_astar = False

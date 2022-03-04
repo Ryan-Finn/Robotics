@@ -24,7 +24,7 @@ class Grid:
         self.width, self.height = 0, 0
         self.r1, self.r2 = [], []
         self.init()
-        self.obstacle_map = [[False for _ in self.r2]
+        self.obstacle_map = [[0 for _ in self.r2]
                              for _ in self.r1]
         self.motion = [[-1, 0, 1],
                        [0, 1, 1],
@@ -275,13 +275,13 @@ class Grid:
             m = rise / run
             b = current.y - current.x * m
             y = m * x + b
-            if self.obstacle_map[x][math.floor(y)] or self.obstacle_map[x][math.ceil(y)]:
+            if self.obstacle_map[x][math.floor(y)] == 1 or self.obstacle_map[x][math.ceil(y)] == 1:
                 return False
         for y in range(min(current.y, node.y), max(current.y, node.y)):
             n = run / rise
             d = current.x - current.y * n
             x = n * y + d
-            if self.obstacle_map[math.floor(x)][y] or self.obstacle_map[math.ceil(x)][y]:
+            if self.obstacle_map[math.floor(x)][y] == 1 or self.obstacle_map[math.ceil(x)][y] == 1:
                 return False
         return True
 
@@ -322,7 +322,7 @@ class Grid:
         return (node.y - self.start[1]) * self.width + (node.x - self.start[0])
 
     def obstacle_node(self, node):
-        if self.obstacle_map[node.x][node.y]:
+        if self.obstacle_map[node.x][node.y] == 1:
             return True
         return False
 
@@ -341,10 +341,14 @@ class Grid:
         return False
 
     def init(self):
-        self.width = 2 * (self.goal[0] - self.start[0])
-        self.height = 2 * (self.goal[1] - self.start[1])
-        self.r1 = range(math.floor(self.start[0] - self.width / 4), math.ceil(self.goal[0] + self.width / 4))
-        self.r2 = range(math.floor(self.start[1] - self.height / 4), math.ceil(self.goal[1] + self.height / 4))
+        self.width = self.goal[0] - self.start[0] + 20
+        self.height = self.goal[1] - self.start[1] + 20
+        self.r1 = range(self.start[0] - 10, self.goal[0] + 10)
+        self.r2 = range(self.start[1] - 10, self.goal[1] + 10)
+        # self.width = 2 * (self.goal[0] - self.start[0])
+        # self.height = 2 * (self.goal[1] - self.start[1])
+        # self.r1 = range(math.floor(self.start[0] - self.width / 4), math.ceil(self.goal[0] + self.width / 4))
+        # self.r2 = range(math.floor(self.start[1] - self.height / 4), math.ceil(self.goal[1] + self.height / 4))
 
     def calc_obstacle_map(self, ox, oy):
         # obstacle map generation
@@ -355,5 +359,5 @@ class Grid:
                 for iox, ioy in zip(ox, oy):
                     d = math.hypot(iox - x, ioy - y)
                     if d <= self.rr:
-                        self.obstacle_map[ix][iy] = True
+                        self.obstacle_map[ix][iy] = 1
                         break

@@ -1,12 +1,11 @@
-from aStar import Grid
-import math
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from numpy.random import rand
+from aStar import Grid
+from brushfire import Brushfire
 
 # np.random.seed(11)
-show_animation = True
+show_animation = False
 single_sided_astar = False
 
 
@@ -61,7 +60,8 @@ def main():
                                          lambda event: [exit(0) if event.key == 'escape' else None])
             plt.pause(0.001)
 
-    grid.aStar(single=single_sided_astar)
+    Brushfire(grid)
+    # grid.aStar(single=single_sided_astar)
     if show_animation:
         plt.show()
 

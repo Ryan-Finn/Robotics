@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from numpy.random import rand
 
-np.random.seed(11)
+# np.random.seed(11)
 show_animation = True
 single_sided_astar = False
 
@@ -28,30 +28,29 @@ def main():
         plt.axis("equal")
         plt.pause(1)
 
-    # a bunch of random elliptical obstacles
+    # a few random rectangular obstacles
     obs = []
     w = gx - sx
     h = gy - sy
-    for _ in range(15):
+    for _ in range(3):
         ob = Rectangle(xy=(rand() * w + sx, rand() * h + sy), width=rand() * 16 + 4 + robot_radius,
-                       height=rand() * 16 + 4 + robot_radius, angle=(0, 90)[round(rand())])
+                       height=rand() * 16 + 4 + robot_radius)
         while ob.contains_point((sx, sy)) or ob.contains_point((gx, gy)):
             ob = Rectangle(xy=(rand() * w + sx, rand() * h + sy), width=rand() * 16 + 4 + robot_radius,
-                           height=rand() * 16 + 4 + robot_radius, angle=rand() * 360)
-        ob.width -= robot_radius
-        ob.height -= robot_radius
+                           height=rand() * 16 + 4 + robot_radius)
+        ob.set_width(ob.get_width() - robot_radius)
+        ob.set_height(ob.get_height() - robot_radius)
         obs.append(ob)
 
-    # discretize each ellipse
+    # discretize each rectangle
     print("Creating Obstacles...")
     for ob in obs:
-        h = math.ceil(max(ob.width, ob.height) / 2)
-        x = ob.center[0] - h
-        y = ob.center[1] - h
+        x = ob.get_x() - ob.get_width() / 2
+        y = ob.get_y() - ob.get_height() / 2
 
         ox, oy = [], []
-        for i in range(int(x), int(x + 2 * h)):
-            for j in range(int(y), int(y + 2 * h)):
+        for i in range(int(x), int(x + ob.get_width())):
+            for j in range(int(y), int(y + ob.get_height())):
                 if ob.contains_point((i, j)):
                     ox.append(i)
                     oy.append(j)

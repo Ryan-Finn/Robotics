@@ -80,17 +80,6 @@ def detect_collision(line_seg, circle):
 
 
 def get_occupancy_grid(arm):
-    """
-    Author: Daniel Ingram (daniel-s-ingram)
-    Discretizes joint space into M values from -pi to +pi
-    and determines whether a given coordinate in joint space
-    would result in a collision between a robot arm and obstacles
-    in its environment.
-    Args:
-        arm: An instance of NLinkArm
-    Returns:
-        Occupancy grid in joint space
-    """
     grid = [[0 for _ in range(resolution)] for _ in range(resolution)]
     theta_list = [2 * i * pi / resolution for i in range(-resolution // 2, resolution // 2 + 1)]
     for i in range(resolution):
@@ -113,6 +102,7 @@ def get_occupancy_grid(arm):
 def astar_torus(grid, start_node, goal_node):
     """
     Author: Daniel Ingram (daniel-s-ingram)
+    https://github.com/AtsushiSakai/PythonRobotics/blob/master/ArmNavigation/arm_obstacle_navigation/arm_obstacle_navigation.py
     Finds a path between an initial and goal joint configuration using
     the A* Algorithm on a toroidal grid.
     Args:

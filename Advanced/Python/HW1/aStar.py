@@ -322,9 +322,7 @@ class Grid:
         return (node.y - self.start[1]) * self.width + (node.x - self.start[0])
 
     def obstacle_node(self, node):
-        if self.obstacle_map[node.x][node.y]:
-            return True
-        return False
+        return self.obstacle_map[node.x][node.y]
 
     def bounds_node(self, node):
         px = self.calc_grid_position(node.x, self.start[0])

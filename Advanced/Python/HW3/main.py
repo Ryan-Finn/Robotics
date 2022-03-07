@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.patches import Rectangle
 from numpy.random import rand
 from aStar import Grid
 from brushfire import Brushfire
 
-# np.random.seed(11)
-show_animation = False
-single_sided_astar = False
+np.random.seed(7)
+show_animation = True
+single_sided_astar = True
 
 
 def main():
@@ -27,25 +28,69 @@ def main():
         plt.axis("equal")
         plt.pause(1)
 
-    # a few random rectangular obstacles
+    ox = [x for x in range(sx - 5, gx + 6)]
+    oy = [sy - 5 for _ in range(sy - 5, gy + 6)]
+    grid.calc_obstacle_map(ox, oy)
+    if show_animation:
+        plt.plot(ox, oy, "sk")
+
+    ox = [x for x in range(sx - 5, gx + 6)]
+    oy = [gy + 5 for _ in range(sy - 5, gy + 6)]
+    grid.calc_obstacle_map(ox, oy)
+    if show_animation:
+        plt.plot(ox, oy, "sk")
+
+    ox = [sx - 5 for _ in range(sx - 5, gx + 6)]
+    oy = [y for y in range(sy - 5, gy + 6)]
+    grid.calc_obstacle_map(ox, oy)
+    if show_animation:
+        plt.plot(ox, oy, "sk")
+
+    ox = [gx + 5 for _ in range(sx - 5, gx + 6)]
+    oy = [y for y in range(sy - 5, gy + 6)]
+    grid.calc_obstacle_map(ox, oy)
+    if show_animation:
+        plt.plot(ox, oy, "sk")
+
+    # 4 random rectangular obstacles, one in each quadrant
+    print("Creating Obstacles...")
     obs = []
     w = gx - sx
     h = gy - sy
-    for _ in range(3):
-        ob = Rectangle(xy=(rand() * w + sx, rand() * h + sy), width=rand() * 16 + 4 + robot_radius,
-                       height=rand() * 16 + 4 + robot_radius)
-        while ob.contains_point((sx, sy)) or ob.contains_point((gx, gy)):
-            ob = Rectangle(xy=(rand() * w + sx, rand() * h + sy), width=rand() * 16 + 4 + robot_radius,
-                           height=rand() * 16 + 4 + robot_radius)
-        ob.set_width(ob.get_width() - robot_radius)
-        ob.set_height(ob.get_height() - robot_radius)
-        obs.append(ob)
+    # Quad 1
+    ob = Rectangle(xy=(rand() * w / 2 + w / 2 - 7, rand() * h / 2 + h / 2 - 7), width=rand() * 8 + 4 + robot_radius,
+                   height=rand() * 8 + 4 + robot_radius)
+    while ob.contains_point((sx, sy)) or ob.contains_point((gx, gy)):
+        ob = Rectangle(xy=(rand() * w / 2 + w / 2 - 7, rand() * h / 2 + h / 2 - 7), width=rand() * 8 + 4 + robot_radius,
+                       height=rand() * 8 + 4 + robot_radius)
+    ob.set_width(ob.get_width() - robot_radius)
+    ob.set_height(ob.get_height() - robot_radius)
+    obs.append(ob)
+
+    # Quad 2
+    ob = Rectangle(xy=(rand() * w / 2, rand() * h / 2 + h / 2 - 7), width=rand() * 8 + 4,
+                   height=rand() * 8 + 4)
+    obs.append(ob)
+
+    # Quad 3
+    ob = Rectangle(xy=(rand() * w / 2, rand() * h / 2), width=rand() * 8 + 4 + robot_radius,
+                   height=rand() * 8 + 4 + robot_radius)
+    while ob.contains_point((sx, sy)) or ob.contains_point((gx, gy)):
+        ob = Rectangle(xy=(rand() * w / 2, rand() * h / 2), width=rand() * 8 + 4 + robot_radius,
+                       height=rand() * 8 + 4 + robot_radius)
+    ob.set_width(ob.get_width() - robot_radius)
+    ob.set_height(ob.get_height() - robot_radius)
+    obs.append(ob)
+
+    # Quad 4
+    ob = Rectangle(xy=(rand() * w / 2 + w / 2 - 7, rand() * h / 2), width=rand() * 8 + 4,
+                   height=rand() * 8 + 4)
+    obs.append(ob)
 
     # discretize each rectangle
-    print("Creating Obstacles...")
     for ob in obs:
-        x = ob.get_x() - ob.get_width() / 2
-        y = ob.get_y() - ob.get_height() / 2
+        x = ob.get_x()
+        y = ob.get_y()
 
         ox, oy = [], []
         for i in range(int(x), int(x + ob.get_width())):
@@ -58,10 +103,10 @@ def main():
             plt.plot(ox, oy, "sk")
             plt.gcf().canvas.mpl_connect('key_release_event',
                                          lambda event: [exit(0) if event.key == 'escape' else None])
-            plt.pause(0.001)
+            plt.pause(0.01)
 
     Brushfire(grid)
-    # grid.aStar(single=single_sided_astar)
+    grid.aStar(single=single_sided_astar)
     if show_animation:
         plt.show()
 

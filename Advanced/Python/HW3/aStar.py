@@ -24,7 +24,7 @@ class Grid:
         self.width, self.height = 0, 0
         self.r1, self.r2 = [], []
         self.init()
-        self.obstacle_map = [[0 for _ in self.r2]
+        self.obstacle_map = [[False for _ in self.r2]
                              for _ in self.r1]
         self.motion = [[-1, 0, 1],
                        [0, 1, 1],
@@ -198,6 +198,12 @@ class Grid:
                 7 in obs and 2 not in obs and 3 not in obs:
             corner_set[c_id] = self.Node(current.x, current.y, np.inf, -1)
             corner = True
+        elif 4 in obs and 3 in obs and 0 in obs or \
+                5 in obs and 0 in obs and 1 in obs or \
+                6 in obs and 1 in obs and 2 in obs or \
+                7 in obs and 2 in obs and 3 in obs:
+            corner_set[c_id] = self.Node(current.x, current.y, np.inf, -1)
+            corner = True
 
         if corner and show_animation:
             plt.plot(self.calc_grid_position(current.x, self.start[0]),
@@ -275,13 +281,13 @@ class Grid:
             m = rise / run
             b = current.y - current.x * m
             y = m * x + b
-            if self.obstacle_map[x][math.floor(y)] == 1 or self.obstacle_map[x][math.ceil(y)] == 1:
+            if self.obstacle_map[x][math.floor(y)] or self.obstacle_map[x][math.ceil(y)]:
                 return False
         for y in range(min(current.y, node.y), max(current.y, node.y)):
             n = run / rise
             d = current.x - current.y * n
             x = n * y + d
-            if self.obstacle_map[math.floor(x)][y] == 1 or self.obstacle_map[math.ceil(x)][y] == 1:
+            if self.obstacle_map[math.floor(x)][y] or self.obstacle_map[math.ceil(x)][y]:
                 return False
         return True
 
@@ -322,33 +328,27 @@ class Grid:
         return (node.y - self.start[1]) * self.width + (node.x - self.start[0])
 
     def obstacle_node(self, node):
-        if self.obstacle_map[node.x][node.y] == 1:
-            return True
-        return False
+        return self.obstacle_map[node.x][node.y]
 
     def bounds_node(self, node):
         px = self.calc_grid_position(node.x, self.start[0])
         py = self.calc_grid_position(node.y, self.start[1])
 
-        if px < self.start[0] - self.width / 4:
+        if px < self.start[0] - 5:
             return True
-        elif py < self.start[1] - self.height / 4:
+        elif py < self.start[1] - 5:
             return True
-        elif px > self.goal[0] + self.width / 4:
+        elif px > self.goal[0] + 5:
             return True
-        elif py > self.goal[1] + self.height / 4:
+        elif py > self.goal[1] + 5:
             return True
         return False
 
     def init(self):
-        self.width = self.goal[0] - self.start[0] + 20
-        self.height = self.goal[1] - self.start[1] + 20
-        self.r1 = range(self.start[0] - 10, self.goal[0] + 10)
-        self.r2 = range(self.start[1] - 10, self.goal[1] + 10)
-        # self.width = 2 * (self.goal[0] - self.start[0])
-        # self.height = 2 * (self.goal[1] - self.start[1])
-        # self.r1 = range(math.floor(self.start[0] - self.width / 4), math.ceil(self.goal[0] + self.width / 4))
-        # self.r2 = range(math.floor(self.start[1] - self.height / 4), math.ceil(self.goal[1] + self.height / 4))
+        self.width = self.goal[0] - self.start[0] + 10
+        self.height = self.goal[1] - self.start[1] + 10
+        self.r1 = range(self.start[0] - 5, self.goal[0] + 6)
+        self.r2 = range(self.start[1] - 5, self.goal[1] + 6)
 
     def calc_obstacle_map(self, ox, oy):
         # obstacle map generation
@@ -359,5 +359,5 @@ class Grid:
                 for iox, ioy in zip(ox, oy):
                     d = math.hypot(iox - x, ioy - y)
                     if d <= self.rr:
-                        self.obstacle_map[ix][iy] = 1
+                        self.obstacle_map[ix][iy] = True
                         break

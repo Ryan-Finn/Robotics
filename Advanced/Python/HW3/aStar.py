@@ -63,10 +63,6 @@ class Grid:
         def __eq__(self, n2):
             return self.x == n2.x and self.y == n2.y
 
-        def __str__(self):
-            return str(self.x) + "," + str(self.y) + "," + str(
-                self.cost) + "," + str(self.parent_index)
-
     def aStar(self, start=None, goal=None, checked_set=None, corner_set2=None, single=False):
         print("Exploring...")
 

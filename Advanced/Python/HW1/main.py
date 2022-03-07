@@ -12,6 +12,11 @@ single_sided_astar = False
 
 
 def make_maze(top_vertex, bottom_vertex, obs_number=1500):
+    """
+    Author: Weicent
+    https://github.com/AtsushiSakai/PythonRobotics/blob/master/PathPlanning/AStar/a_star_searching_from_two_side.py
+    randomly generate maze
+    """
     # below can be merged into a rectangle boundary
     ay = list(range(bottom_vertex[1], top_vertex[1]))
     ax = [bottom_vertex[0]] * len(ay)

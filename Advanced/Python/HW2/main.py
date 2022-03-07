@@ -1,6 +1,5 @@
 import math
 from math import pi
-
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import from_levels_and_colors
@@ -81,6 +80,17 @@ def detect_collision(line_seg, circle):
 
 
 def get_occupancy_grid(arm):
+    """
+    Author: Daniel Ingram (daniel-s-ingram)
+    Discretizes joint space into M values from -pi to +pi
+    and determines whether a given coordinate in joint space
+    would result in a collision between a robot arm and obstacles
+    in its environment.
+    Args:
+        arm: An instance of NLinkArm
+    Returns:
+        Occupancy grid in joint space
+    """
     grid = [[0 for _ in range(resolution)] for _ in range(resolution)]
     theta_list = [2 * i * pi / resolution for i in range(-resolution // 2, resolution // 2 + 1)]
     for i in range(resolution):
@@ -102,14 +112,13 @@ def get_occupancy_grid(arm):
 
 def astar_torus(grid, start_node, goal_node):
     """
+    Author: Daniel Ingram (daniel-s-ingram)
     Finds a path between an initial and goal joint configuration using
     the A* Algorithm on a toroidal grid.
-
     Args:
         grid: An occupancy grid (ndarray)
         start_node: Initial joint configuration (tuple)
         goal_node: Goal joint configuration (tuple)
-
     Returns:
         Obstacle-free route in joint space from start_node to goal_node
     """
@@ -213,6 +222,10 @@ def calc_heuristic_map(goal_node):
 
 
 class NLinkArm:
+    """
+    Author: Daniel Ingram (daniel-s-ingram)
+    Class for controlling and plotting a planar arm with an arbitrary number of links.
+    """
     def __init__(self, link_lengths, joint_angles):
         self.n_links = len(link_lengths)
         if self.n_links != len(joint_angles):

@@ -40,7 +40,6 @@ class RRT:
             self.ymin = float(area[2])
             self.ymax = float(area[3])
 
-
     def __init__(self,
                  start,
                  goal,

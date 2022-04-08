@@ -248,17 +248,16 @@ class RRT:
         return d, theta
 
 
-def main(gx=6.0, gy=10.0):
+def main(gx=15, gy=15):
     print("start " + __file__)
 
     # ====Search Path with RRT====
-    obstacleList = [(5, 5, 1), (3, 6, 2), (3, 8, 2), (3, 10, 2), (7, 5, 2),
-                    (9, 5, 2), (8, 10, 1)]  # [x, y, radius]
+    obstacleList = [(15, 8, 2)]  # [x, y, radius]
     # Set Initial parameters
     rrt = RRT(
-        start=[0, 0],
+        start=[5, 5],
         goal=[gx, gy],
-        rand_area=[-2, 15],
+        rand_area=[-2, 22],
         obstacle_list=obstacleList,
         # play_area=[0, 10, 0, 14]
         )

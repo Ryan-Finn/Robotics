@@ -8,11 +8,11 @@ from shapely.geometry import Polygon
 from shapely.geometry import LineString
 
 show_animation = True
-random.seed(7)
+# random.seed(7)
 
 
 class RRT:
-    def __init__(self, start, goal, obstacle_list, play_area=None, rand_area=None, dubins=False):
+    def __init__(self, start, goal, obstacle_list, play_area=None, rand_area=None, dubins=False, k=0.5):
         self.start = self.Node(start[0], start[1], math.pi / 4)
         self.end = self.Node(goal[0], goal[1], math.pi / 2)
         self.obstacle_list = obstacle_list
@@ -34,6 +34,7 @@ class RRT:
             self.rand_area = play_area
 
         self.dubins = dubins
+        self.k = k
         self.node_list = []
 
     class Node:
@@ -54,7 +55,7 @@ class RRT:
             dlist = []
             if self.dubins:
                 for n in self.node_list:
-                    paths, _ = Dubins((n.x, n.y), (rnd_node.x, rnd_node.y), 2, n.a, rnd_node.a).getPaths()
+                    paths, _ = Dubins((n.x, n.y), (rnd_node.x, rnd_node.y), 1/self.k, n.a, rnd_node.a).getPaths()
                     dlist.append(paths[0].length)
             else:
                 dlist = [(n.x - rnd_node.x) ** 2 + (n.y - rnd_node.y) ** 2 for n in self.node_list]
@@ -67,7 +68,7 @@ class RRT:
             last_node = self.node_list[-1]
             c = 2
             if self.dubins:
-                c = 6
+                c = 7
             if self.calc_dist_to_goal(last_node.x, last_node.y, last_node.a) <= c:
                 self.final_steer(last_node)
                 if self.check_collision(self.end):
@@ -87,7 +88,7 @@ class RRT:
         start = (from_node.x, from_node.y)
         goal = (new_node.x, new_node.y)
         if self.dubins:
-            paths, new_node.a = Dubins(start, goal, 2, from_node.a).getPaths()
+            paths, new_node.a = Dubins(start, goal, 1/self.k, from_node.a).getPaths()
         else:
             paths = [LineString([(start[0], start[1]), (goal[0], goal[1])])]
 
@@ -104,7 +105,7 @@ class RRT:
         start = (from_node.x, from_node.y)
         goal = (self.end.x, self.end.y)
         if self.dubins:
-            paths, _ = Dubins(start, goal, 2, from_node.a, self.end.a).getPaths()
+            paths, _ = Dubins(start, goal, 1/self.k, from_node.a, self.end.a).getPaths()
         else:
             paths = [LineString([(start[0], start[1]), (goal[0], goal[1])])]
 
@@ -128,7 +129,7 @@ class RRT:
 
     def calc_dist_to_goal(self, x, y, a):
         if self.dubins:
-            paths, _ = Dubins((x, y), (self.end.x, self.end.y), 2, a, self.end.a).getPaths()
+            paths, _ = Dubins((x, y), (self.end.x, self.end.y), 1/self.k, a, self.end.a).getPaths()
             return paths[0].length
 
         dx = x - self.end.x
@@ -175,10 +176,8 @@ class RRT:
 
         for ob in self.obstacle_list:
             plt.gca().add_patch(dc.PolygonPatch(ob))
-            # plt.plot(*ob.exterior.xy)
 
         plt.axis("equal")
-        # plt.grid(True)
         plt.pause(0.1)
 
 
@@ -194,7 +193,8 @@ def main():
         goal=[15, 15],
         obstacle_list=obstacleList,
         play_area=[0, 30],
-        dubins=True
+        dubins=True,
+        k=0.5
     )
     path = rrt.planning(animation=show_animation)
 

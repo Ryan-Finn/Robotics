@@ -17,7 +17,6 @@ args = parser.parse_args()
 
 output_file = args.output_file
 
-
 curr_polygon = []
 polygons = []
 start_pt = (0, 0)
@@ -85,7 +84,8 @@ def on_key(event):
 
 
 fig, ax = plt.subplots()
-fig.suptitle("Left click to drop a vertex for a polygon.\n Right click to drop the last vertex for a polygon.\nPress 'a' to place the start point.\nPress 'b' to place the end point")
+fig.suptitle(
+    "Left click to drop a vertex for a polygon.\n Right click to drop the last vertex for a polygon.\nPress 'a' to place the start point.\nPress 'b' to place the end point")
 
 boundary_pts = [[-1, -1], [-1, 21], [21, 21], [21, -1]]
 interior_pts = [[0, 0], [0, 20], [20, 20], [20, 0]][::-1]
@@ -95,13 +95,13 @@ b_max = 5
 
 boundary_polys = []
 boundary_polys.append([[b_min, b_min], [b_min, b_max], [
-                      b_min-1, b_max], [b_min-1, b_min]])
-boundary_polys.append([[b_min-1, b_max], [b_min-1, b_max+1],
-                      [b_max+1, b_max+1], [b_max+1, b_max]])
-boundary_polys.append([[b_max, b_max], [b_max+1, b_max],
-                      [b_max+1, b_min], [b_max, b_min]])
-boundary_polys.append([[b_max+1, b_min], [b_max+1, b_min-1],
-                      [b_min-1, b_min-1], [b_min-1, b_min]])
+    b_min - 1, b_max], [b_min - 1, b_min]])
+boundary_polys.append([[b_min - 1, b_max], [b_min - 1, b_max + 1],
+                       [b_max + 1, b_max + 1], [b_max + 1, b_max]])
+boundary_polys.append([[b_max, b_max], [b_max + 1, b_max],
+                       [b_max + 1, b_min], [b_max, b_min]])
+boundary_polys.append([[b_max + 1, b_min], [b_max + 1, b_min - 1],
+                       [b_min - 1, b_min - 1], [b_min - 1, b_min]])
 
 for poly in boundary_polys:
     polygons.append(poly)
@@ -111,7 +111,7 @@ for poly in boundary_polys:
 fig.canvas.mpl_connect("button_press_event", on_press)
 fig.canvas.mpl_connect("key_press_event", on_key)
 
-ax.set_xlim(b_min-1, b_max+1)
-ax.set_ylim(b_min-1, b_max+1)
+ax.set_xlim(b_min - 1, b_max + 1)
+ax.set_ylim(b_min - 1, b_max + 1)
 
 plt.show(block=True)

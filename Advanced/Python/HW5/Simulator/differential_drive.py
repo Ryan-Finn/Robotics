@@ -18,8 +18,8 @@ class DifferentialDrive:
         self.w = width
         self.r = wheel_radius
 
-        points1 = [[-length/2, -width/2], [length/2, -width/2],
-                   [length/2, width/2], [-length/2, width/2]]
+        points1 = [[-length / 2, -width / 2], [length / 2, -width / 2],
+                   [length / 2, width / 2], [-length / 2, width / 2]]
         self.s1 = geom.Polygon(points1)
 
         self.p1 = dc.PolygonPatch(self.s1)
@@ -32,12 +32,12 @@ class DifferentialDrive:
         omega1 = u[0]
         omega2 = u[1]
 
-        s = (omega1+omega2) * self.r / 2
+        s = (omega1 + omega2) * self.r / 2
 
-        xdot = s*np.cos(theta)
-        ydot = s*np.sin(theta)
+        xdot = s * np.cos(theta)
+        ydot = s * np.sin(theta)
 
-        thetadot = self.r/self.w * (omega1-omega2)
+        thetadot = self.r / self.w * (omega1 - omega2)
 
         return [xdot, ydot, thetadot]
 

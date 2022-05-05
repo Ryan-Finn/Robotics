@@ -52,8 +52,8 @@ wheel_noise_a2 = 0
 wheel_noise_a3 = 0
 wheel_noise_a4 = 0.01
 
-landmark_range_sigma = 0.05
-landmark_bearing_sigma = 0.01
+lidar_range_sigma = 0.05
+lidar_bearing_sigma = 0.01
 
 
 def load_map(filename):
@@ -65,12 +65,11 @@ def load_map(filename):
         obstacles.append(poly)
     start = obj["start"]
     goal = obj["goal"]
-    bounds = obj["bounds"]
 
-    return obstacles, start, goal, bounds
+    return obstacles, start, goal
 
 
-obstacles, start, goal, bounds = load_map(map_name)
+obstacles, start, goal = load_map(map_name)
 
 landmarks = []
 landmarks.append(goal)
@@ -127,128 +126,88 @@ def add_wheel_noise(omega1, omega2):
 
 
 def visible_landmarks(state, landmarks):
-    landmark_diffs = landmarks - np.array([state[0], state[1]])
-    landmark_dists = np.linalg.norm(landmark_diffs, axis=1)
-    landmark_thetas = np.arctan2(
-        landmark_diffs[:, 1], landmark_diffs[:, 0]) - state[2]
+    diffs = landmarks - np.array([state[0], state[1]])
+    dists = np.linalg.norm(diffs, axis=1)
+    thetas = np.arctan2(diffs[:, 1], diffs[:, 0]) - state[2]
+    thetas = np.remainder(thetas + np.pi, 2 * np.pi) - np.pi
 
-    landmark_thetas = np.remainder(landmark_thetas + np.pi, 2 * np.pi) - np.pi
+    vis = np.where((dists < 0.5) & (thetas > -np.pi / 2) & (thetas < np.pi / 2))
+    return zip(vis[0], dists[vis[0]], thetas[vis[0]])
 
-    vis = np.where((landmark_dists < 0.5) & (
-            landmark_thetas > -np.pi / 2) & (landmark_thetas < np.pi / 2))
-    return vis[0], landmark_dists[vis[0]], landmark_thetas[vis[0]]
+
+def calc(state, t):
+    omega1 = 0
+    omega2 = 0
+    start_s = [start[0], start[1], 0]
+    try:
+        topic, message_str = sub_socket.recv_multipart(flags=zmq.NOBLOCK)
+        queue_empty = False
+        queue_count = 1
+        while not queue_empty:
+            try:
+                topic, message_str = sub_socket.recv_multipart(flags=zmq.NOBLOCK)
+                queue_count += 1
+            except zmq.ZMQError:
+                queue_empty = True
+                if queue_count > 1:
+                    print("Dropped {} old messages from queue. Receiving more than one message per timestep".format(
+                        queue_count - 1))
+        message_dict = json.loads(message_str.decode())
+        omega1 = message_dict["omega1"]
+        omega2 = message_dict["omega2"]
+        t += timestep
+    except zmq.ZMQError:
+        pass
+
+    res = solve_ivp(robot1.deriv, [0, timestep], state, args=[[omega1, omega2], 0])
+    temp_state = res.y[:, -1] - start_s
+    state_dict = {"timestamp": t, "x": temp_state[0], "y": temp_state[1], "theta": temp_state[2]}
+    state_str = json.dumps(state_dict).encode()
+    pub_socket.send_multipart([b"model_state", state_str])
+
+    noisy_omega1, noisy_omega2 = add_wheel_noise(omega1, omega2)
+    res = solve_ivp(robot1.deriv, [0, timestep], state, args=[[noisy_omega1, noisy_omega2], 0])
+    if not robot1.collides(res.y[:, -1], obstacles):
+        state = res.y[:, -1]
+    state_dict = {"timestamp": t, "x": state[0], "y": state[1], "theta": state[2]}
+    state_str = json.dumps(state_dict).encode()
+    pub_socket.send_multipart([b"actual_state", state_str])
+
+    collision_dict = {"timestamp": t, "collision": robot1.collides(res.y[:, -1], obstacles)}
+    collision_str = json.dumps(collision_dict).encode()
+    pub_socket.send_multipart([b"collision", collision_str])
+
+    marks_dict = {}
+    message_dict = {"timestamp": t}
+    for index, dist, theta in visible_landmarks(state, landmarks):
+        marks_dict[int(index)] = {}
+        marks_dict[int(index)]["dist"] = dist + np.random.normal(0, lidar_range_sigma)
+        marks_dict[int(index)]["theta"] = theta + np.random.normal(0, lidar_bearing_sigma)
+
+    message_dict["landmarks"] = marks_dict
+    marks_str = json.dumps(message_dict).encode()
+    pub_socket.send_multipart([b"landmarks", marks_str])
+
+    lines = lidar(state, obstacles)
+    dists = [line.length + np.random.normal(0, lidar_range_sigma) for line in lines]
+
+    lidar_dict = {"timestamp": t, "distances": dists}
+    lidar_str = json.dumps(lidar_dict).encode()
+    pub_socket.send_multipart([b"lidar", lidar_str])
+
+    return state, lines, t
 
 
 def producer():
-    global state
     state = [start[0], start[1], 0]
-    omega1 = 0
-    omega2 = 0
     t = 0
     while True:
-        #  Get the newest message
-        try:
-            topic, message_str = sub_socket.recv_multipart(flags=zmq.NOBLOCK)
-            queue_empty = False
-            queue_count = 1
-            while not queue_empty:
-                try:
-                    topic, message_str = sub_socket.recv_multipart(flags=zmq.NOBLOCK)
-                    queue_count += 1
-                except zmq.ZMQError:
-                    queue_empty = True
-                    if queue_count > 1:
-                        print("Dropped {} old messages from queue. Receiving more than one message per timestep".format(
-                            queue_count - 1))
-            message_dict = json.loads(message_str.decode())
-            omega1 = message_dict["omega1"]
-            omega2 = message_dict["omega2"]
-            t += timestep
-        except zmq.ZMQError:
-            pass
-
-        noisy_omega1, noisy_omega2 = add_wheel_noise(omega1, omega2)
-
-        res = solve_ivp(robot1.deriv, [0, timestep], state, args=[[noisy_omega1, noisy_omega2], 0])
-
-        state_dict = {"timestamp": t, "x": state[0], "y": state[1], "theta": state[2]}
-        state_str = json.dumps(state_dict).encode()
-        pub_socket.send_multipart([b"model_state", state_str])
-
-        if not robot1.collides(state, obstacles):
-            state = res.y[:, -1]
-            collision_dict = {"timestamp": t, "collision": False}
-        else:
-            collision_dict = {"timestamp": t, "collision": True}
-            pass
-
-        lines = lidar(state, obstacles)
-        dists = [line.length for line in lines]
-
-        marks, mark_dists, mark_thetas = visible_landmarks(state, landmarks)
-        message_dict = {"timestamp": t}
-        # print([index[0] for index in marks])
-        marks_dict = {}
-        for index, dist, theta in zip(marks, mark_dists, mark_thetas):
-            mark = landmarks[index]
-            marks_dict[int(index)] = {}
-            marks_dict[int(index)]["dist"] = dist + \
-                                             np.random.normal(0, landmark_range_sigma)
-            marks_dict[int(index)]["theta"] = theta + \
-                                              np.random.normal(0, landmark_bearing_sigma)
-
-        state_dict = {"timestamp": t, "x": state[0], "y": state[1], "theta": state[2]}
-        state_str = json.dumps(state_dict).encode()
-        pub_socket.send_multipart([b"actual_state", state_str])
-
-        message_dict["landmarks"] = marks_dict
-        marks_str = json.dumps(message_dict).encode()
-        pub_socket.send_multipart([b"landmarks", marks_str])
-
-        collision_str = json.dumps(collision_dict).encode()
-        pub_socket.send_multipart([b"collision", collision_str])
-
-        lidar_dict = {"timestamp": t, "distances": dists}
-        lidar_str = json.dumps(lidar_dict).encode()
-        pub_socket.send_multipart([b"lidar", lidar_str])
-
+        state, lines, t = calc(state, t)
         yield state, lines
 
 
-# Draw the initial state with a zoomed-in and zoomed-out view
-state = [start[0], start[1], 0]
-patches1 = robot1.draw(ax1, state)
-for patch in patches1:
-    ax1.add_patch(patch)
-
-patches2 = robot2.draw(ax2, state)
-for patch in patches2:
-    ax2.add_patch(patch)
-
 drawn_lines1 = []
-for line in lidar(state, obstacles):
-    x, y = line.xy
-    l = ax1.plot(x, y, 'g')[0]
-    drawn_lines1.append(l)
-
 drawn_lines2 = []
-for line in lidar(state, obstacles):
-    x, y = line.xy
-    l = ax2.plot(x, y, 'g')[0]
-    drawn_lines2.append(l)
-
-ax1.axis("equal")
-ax1.xaxis.set_ticklabels([])
-ax1.yaxis.set_ticklabels([])
-
-ax2.axis("equal")
-ax2.grid("on")
-ax2.set_xlim(bounds[0] - 1, bounds[1] + 1)
-ax2.set_ylim(bounds[0] - 1, bounds[1] + 1)
-
-
-# Start the animation. It pulls new data from the producer function and passes
-# it to the animate function to update the visuals
 
 
 def animate(data):
@@ -262,19 +221,41 @@ def animate(data):
             drawn_line.set_data(x, y)
         except NotImplementedError:
             print(line)
+
     for line, drawn_line in zip(lines, drawn_lines2):
         try:
             x, y = line.xy
             drawn_line.set_data(x, y)
         except NotImplementedError:
             print(line)
+
     window_size = 1
     ax1.set_xlim(state[0] - window_size, state[0] + window_size)
     ax1.set_ylim(state[1] - window_size, state[1] + window_size)
     return *obs_patches1, *patches1, *patches2, *drawn_lines1, *drawn_lines2
 
 
-time_scale = 100  # Make this number bigger to slow down time
+state, lines, _ = calc([start[0], start[1], 0], 0)
+patches1 = robot1.draw(ax1, state)
+patches2 = robot2.draw(ax2, state)
+
+for patch in patches1:
+    ax1.add_patch(patch)
+
+for patch in patches2:
+    ax2.add_patch(patch)
+
+for line in lines:
+    x, y = line.xy
+    l = ax1.plot(x, y, 'g')[0]
+    drawn_lines1.append(l)
+    l = ax2.plot(x, y, 'g')[0]
+    drawn_lines2.append(l)
+
+ax1.axis("equal")
+ax2.axis("equal")
+
+time_scale = 1  # Make this number bigger to slow down time
 animation = anim.FuncAnimation(fig, animate, producer, interval=timestep * 1000 * time_scale, blit=True)
 
 plt.show(block=True)

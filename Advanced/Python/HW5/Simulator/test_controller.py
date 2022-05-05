@@ -20,11 +20,10 @@ sub_socket = context.socket(zmq.SUB)
 # sub_socket.connect("ipc:///tmp/robo_sim/sub.ipc")
 sub_socket.connect("tcp://localhost:5555")
 
+sub_socket.setsockopt(zmq.SUBSCRIBE, b"collision")
 sub_socket.setsockopt(zmq.SUBSCRIBE, b"model_state")
-# sub_socket.setsockopt(zmq.SUBSCRIBE, b"sensor_state")
 sub_socket.setsockopt(zmq.SUBSCRIBE, b"actual_state")
 sub_socket.setsockopt(zmq.SUBSCRIBE, b"landmarks")
-# sub_socket.setsockopt(zmq.SUBSCRIBE, b"collision")
 sub_socket.setsockopt(zmq.SUBSCRIBE, b"lidar")
 
 s = 10
@@ -35,13 +34,11 @@ k_dir = 1
 
 count = 0
 while True:
-    # if k > 1:
-    #     k_dir = -1
-    # elif k < -1:
-    #     k_dir = 1
-    # k += k_dir*0.01
     topic, message = sub_socket.recv_multipart()
     print(topic, ":", json.loads(message.decode()))
+
+    if topic == b"collision" and json.loads(message.decode())["collision"]:
+        break
 
     if topic == b"lidar":
         max_dist = 0.5
